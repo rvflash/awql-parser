@@ -83,6 +83,14 @@ func (s *Scanner) Scan() (Token, string) {
 		}
 		s.unread()
 		return INFERIOR, string(r)
+	case '\\':
+		// Deal with \G
+		if r := s.read(); r == 'G' {
+			return G_MODIFIER, "\\G"
+		}
+		s.unread()
+	case ';':
+		return SEMICOLON, string(r)
 	}
 	return ILLEGAL, string(r)
 }
@@ -220,14 +228,14 @@ func (s *Scanner) scanQuotedString() (Token, string) {
 		r := s.read()
 		if r == eof {
 			return ILLEGAL, ""
-		}
-		buf.WriteRune(r)
-
-		if r == '\\' {
+		} else if r == '\\' {
+			buf.WriteRune(r)
 			// Only the character immediately after the escape can itself be a backslash or quote.
 			// Thus, we only need to protect the first character after the backslash.
 			buf.WriteRune(s.read())
-		} else if r == quote {
+		} else if r != quote {
+			buf.WriteRune(r)
+		} else {
 			break
 		}
 	}

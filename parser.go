@@ -368,15 +368,17 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 			// And the value of the condition.ValueLiteral | String | ValueLiteralList | StringList
 			tk, literal := p.scanIgnoreWhitespace()
 			switch tk {
-			case DECIMAL:
-			case DIGIT:
 			case STRING:
-			case VALUE_LITERAL:
+				cond.IsValueLiteral = true
+				fallthrough
+			case DECIMAL, DIGIT, VALUE_LITERAL:
 				cond.Value = append(cond.Value, literal)
 			case LEFT_SQUARE_BRACKETS:
 				p.unscan()
 				if tk, cond.Value = p.scanValueList(); tk != VALUE_LITERAL_LIST && tk != STRING_LIST {
 					return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+				} else if tk == STRING_LIST {
+					cond.IsValueLiteral = true
 				}
 			default:
 				return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))

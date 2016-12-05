@@ -21,8 +21,9 @@ type Field struct {
 // Condition represents a where clause.
 type Condition struct {
 	Column
-	Operator string
-	Value    []string
+	Operator       string
+	Value          []string
+	IsValueLiteral bool
 }
 
 // Pattern represents a LIKE clause.
