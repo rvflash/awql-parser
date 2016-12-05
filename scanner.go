@@ -34,10 +34,6 @@ func (s *Scanner) Scan() (Token, string) {
 		// Consume as string.
 		s.unread()
 		return s.scanQuotedString()
-	} else if r == '[' {
-		// Consume as list of string or value literal.
-		s.unread()
-		return s.scanList()
 	} else if isLetter(r) {
 		// A keyword begins by a letter.
 		// Consume as an identifier or reserved word.
@@ -61,6 +57,10 @@ func (s *Scanner) Scan() (Token, string) {
 		return LEFT_PARENTHESIS, string(r)
 	case ')':
 		return RIGHT_PARENTHESIS, string(r)
+	case '[':
+		return LEFT_SQUARE_BRACKETS, string(r)
+	case ']':
+		return RIGHT_SQUARE_BRACKETS, string(r)
 	case '=':
 		return EQUAL, string(r)
 	case '!':
@@ -95,15 +95,24 @@ func (s *Scanner) scanIdentifier() (Token, string) {
 
 	// Read every subsequent character of this token into the buffer.
 	// Non-literal characters or EOF will cause the loop to exit.
+	var valueLiteral bool
 	for {
 		if r := s.read(); r == eof {
 			break
-		} else if !isLiteral(r) {
+		} else if !isValueLiteral(r) {
 			s.unread()
 			break
 		} else {
+			if r == '.' {
+				valueLiteral = true
+			}
 			buf.WriteRune(r)
 		}
+	}
+
+	// If the string is a value literal then return it.
+	if valueLiteral {
+		return VALUE_LITERAL, buf.String()
 	}
 
 	// If the string matches a reserved keyword then return it.
@@ -174,53 +183,8 @@ func (s *Scanner) scanIdentifier() (Token, string) {
 	return IDENTIFIER, buf.String()
 }
 
-// scanList consumes all runes between left and right square brackets.
-// Use comma as separator to return a list of string or literal value.
-func (s *Scanner) scanList() (tk Token, list []string) {
-	// A list must begin with a left square brackets.
-	if r := s.read(); r != '[' {
-		return
-	}
-	for {
-		if r := s.read(); r == eof {
-			tk = ILLEGAL
-			break
-		} else if isQuote(r) {
-			s.unread()
-			// A list can only be string list or a value literal list but not the both.
-			if tk == VALUE_LITERAL_LIST {
-				tk = ILLEGAL
-				break
-			}
-			// Consume as string.
-			tk = STRING_LIST
-			list = append(list, s.scanQuotedString())
-		} else if isLiteral(r) {
-			s.unread()
-			// A list can only be string list or a value literal list but not the both.
-			if tk == STRING_LIST {
-				tk = ILLEGAL
-				break
-			}
-			// Consume as value literal.
-			tk = VALUE_LITERAL_LIST
-			list = append(list, s.scanValueLiteral())
-		} else if r == ']' {
-			// End of the list.
-			break
-		} else if r != ',' && !isWhitespace(r) {
-			// If the rune is not a comma or whitespace then break the loop.
-			s.unread()
-			tk = ILLEGAL
-			break
-		}
-	}
-
-	return
-}
-
 // scanNumber consumes all digit or dot runes.
-func (s *Scanner) scanNumber() (Token, string) {
+func (s *Scanner) scanNumber() (tk Token, str string) {
 	// Create a buffer and read the current character into it.
 	var buf bytes.Buffer
 	for {
@@ -234,11 +198,11 @@ func (s *Scanner) scanNumber() (Token, string) {
 		}
 	}
 	// Check if it is a valid number.
-	s := buf.String()
-	if _, err := strconv.Atoi(s); err == nil {
-		return DIGIT, s
-	} else if _, err := strconv.ParseFloat(s, 64); err == nil {
-		return DECIMAL, s
+	str = buf.String()
+	if _, err := strconv.Atoi(str); err == nil {
+		tk = DIGIT
+	} else if _, err := strconv.ParseFloat(str, 64); err == nil {
+		tk = DECIMAL
 	}
 	return
 }
@@ -247,39 +211,27 @@ func (s *Scanner) scanNumber() (Token, string) {
 // until the next unprotected quote character.
 func (s *Scanner) scanQuotedString() (Token, string) {
 	// Create a buffer and add the single or double quote into it.
-	if quote := s.read(); quote == '\'' || quote == '"' {
-		var buf bytes.Buffer
-		for {
-			r := s.read()
-			if r == eof {
-				return
-			}
-			buf.WriteRune(r)
-
-			if r == '\\' {
-				// Only the character immediately after the escape can itself be a backslash or quote.
-				// Thus, we only need to protect the first character after the backslash.
-				buf.WriteRune(s.read())
-			} else if r == quote {
-				break
-			}
-		}
-		return STRING, buf.String()
+	quote := s.read()
+	if quote != '\'' && quote != '"' {
+		return ILLEGAL, ""
 	}
-	return
-}
-
-// scanValueLiteral consumes all value literal runes.
-func (s *Scanner) scanValueLiteral() (Token, string) {
 	var buf bytes.Buffer
 	for {
-		if r := s.read(); isValueLiteral(r) {
-			buf.WriteRune(r)
-		} else {
+		r := s.read()
+		if r == eof {
+			return ILLEGAL, ""
+		}
+		buf.WriteRune(r)
+
+		if r == '\\' {
+			// Only the character immediately after the escape can itself be a backslash or quote.
+			// Thus, we only need to protect the first character after the backslash.
+			buf.WriteRune(s.read())
+		} else if r == quote {
 			break
 		}
 	}
-	return VALUE_LITERAL, buf.String()
+	return STRING, buf.String()
 }
 
 // scanWhitespace consumes the current rune and all contiguous whitespace.

@@ -8,7 +8,7 @@ type Column struct {
 // ColumnPosition represents a column with it position in the query.
 type ColumnPosition struct {
 	Column
-	Position uint
+	Position int
 }
 
 // Field represents a field.
@@ -21,7 +21,8 @@ type Field struct {
 // Condition represents a where clause.
 type Condition struct {
 	Column
-	Operator, Value string
+	Operator string
+	Value    []string
 }
 
 // Pattern represents a LIKE clause.
@@ -37,56 +38,67 @@ type Ordering struct {
 
 // Limit represents a limit clause.
 type Limit struct {
-	Offset, RowCount uint
+	Offset, RowCount int
 	WithRowCount     bool
 }
 
-// OutputFormat enables to format the query output.
-type OutputFormat struct {
-	VerticalOutput bool
+// Statement enables to format the query output.
+type Statement struct {
+	GModifier bool
 }
 
 // OutputStmt formats the query output.
-type OutputFmt interface {
+type Stmt interface {
 	VerticalOutput() bool
+	SetVerticalOutput(bool)
 }
 
-// Statement represents a AWQL base statement.
-type Statement struct {
+// VerticalOutput returns true if the G modifier is required.
+func (s Statement) VerticalOutput() bool {
+	return s.GModifier
+}
+
+// SetVerticalOutput specifies if the G modifier is required.
+func (s Statement) SetVerticalOutput(on bool) {
+	s.GModifier = on
+}
+
+// DataStatement represents a AWQL base statement.
+type DataStatement struct {
 	Fields    []Field
 	TableName string
-	OutputFormat
+	Statement
 }
 
 // Stmt represents a AWQL base statement.
 // By design, only the SELECT statement is supported by Adwords.
 // The AWQL command line tool extends it with others SQL grammar.
-type Stmt interface {
+type DataStmt interface {
 	Columns() []Field
 	SourceName() string
-	OutputFmt
+	Stmt
 }
 
 // Columns returns the list of table fields.
-// It implements the Stmt interface.
-func (s Statement) Columns() []Field {
+// It implements the DataStmt interface.
+func (s DataStatement) Columns() []Field {
 	return s.Fields
 }
 
 // SourceName returns the table's name.
-// It implements the Stmt interface.
-func (s Statement) SourceName() string {
+// It implements the DataStmt interface.
+func (s DataStatement) SourceName() string {
 	return s.TableName
 }
 
 // SelectStatement represents a AWQL SELECT statement.
 // SELECT...FROM...WHERE...DURING...GROUP BY...ORDER BY...LIMIT...
 type SelectStatement struct {
-	Statement
+	DataStatement
 	Where   []Condition
 	During  []string
-	GroupBy []ColumnPosition
-	OrderBy []Ordering
+	GroupBy []*ColumnPosition
+	OrderBy []*Ordering
 	Limit
 }
 
@@ -129,13 +141,13 @@ DateRangeLiteral : TODAY | YESTERDAY | LAST_7_DAYS | THIS_WEEK_SUN_TODAY | THIS_
 Date             : 8-digit integer: YYYYMMDD
 */
 type SelectStmt interface {
-	Stmt
+	DataStmt
 	ConditionList() []Condition
 	DuringList() []string
-	GroupList() []ColumnPosition
-	OrderList() []Ordering
-	StartIndex() uint
-	PageSize() (uint, bool)
+	GroupList() []*ColumnPosition
+	OrderList() []*Ordering
+	StartIndex() int
+	PageSize() (int, bool)
 }
 
 // ConditionList returns the condition list.
@@ -152,34 +164,34 @@ func (s SelectStatement) DuringList() []string {
 
 // GroupList returns the group by columns.
 // It implements the SelectStmt interface.
-func (s SelectStatement) GroupList() []ColumnPosition {
+func (s SelectStatement) GroupList() []*ColumnPosition {
 	return s.GroupBy
 }
 
 // OrderList returns the order by columns.
 // It implements the SelectStmt interface.
-func (s SelectStatement) OrderList() []Ordering {
+func (s SelectStatement) OrderList() []*Ordering {
 	return s.OrderBy
 }
 
 // StartIndex returns the start index.
 // It implements the SelectStmt interface.
-func (s SelectStatement) StartIndex() uint {
+func (s SelectStatement) StartIndex() int {
 	return s.Offset
 }
 
 // PageSize returns the row count.
 // It implements the SelectStmt interface.
-func (s SelectStatement) PageSize() (uint, bool) {
+func (s SelectStatement) PageSize() (int, bool) {
 	return s.RowCount, s.WithRowCount
 }
 
 // CreateViewStatement represents a AWQL CREATE VIEW statement.
 // CREATE...OR REPLACE...VIEW...AS
 type CreateViewStatement struct {
-	Statement
+	DataStatement
 	Replace bool
-	View    SelectStatement
+	View    *SelectStatement
 }
 
 /*
@@ -192,9 +204,9 @@ CreateClause     : CREATE (OR REPLACE)* VIEW DestinationName (**(**ColumnList**)
 FromClause       : AS SelectClause
 */
 type CreateViewStmt interface {
-	Stmt
+	DataStmt
 	ReplaceMode() bool
-	SourceQuery() Stmt
+	SourceQuery() SelectStmt
 }
 
 // ReplaceMode returns true if it is required to replace the existing view.
@@ -205,7 +217,7 @@ func (s CreateViewStatement) ReplaceMode() bool {
 
 // SourceQuery returns the source query, base of the view to create.
 // It implements the CreateViewStmt interface.
-func (s CreateViewStatement) SourceQuery() Stmt {
+func (s CreateViewStatement) SourceQuery() SelectStmt {
 	return s.View
 }
 
@@ -218,7 +230,7 @@ type FullStatement struct {
 // DESC...FULL
 type DescribeStatement struct {
 	FullStatement
-	Statement
+	DataStatement
 }
 
 // FullStmt proposes the full statement mode.
@@ -235,7 +247,7 @@ https://github.com/rvflash/awql/
 DescribeClause   : (DESCRIBE | DESC) (FULL)* SourceName (ColumnName)*
 */
 type DescribeStmt interface {
-	Stmt
+	DataStmt
 	FullStmt
 }
 
@@ -251,7 +263,7 @@ type ShowStatement struct {
 	FullStatement
 	Like Pattern
 	With string
-	OutputFormat
+	Statement
 }
 
 /*
@@ -268,12 +280,12 @@ type ShowStmt interface {
 	FullStmt
 	LikePattern() Pattern
 	WithColumnName() string
-	OutputFmt
+	Stmt
 }
 
 // LikePattern returns the pattern used for a like query on the table list.
 // It implements the ShowStmt interface.
-func (s ShowStatement) LikePattern() string {
+func (s ShowStatement) LikePattern() Pattern {
 	return s.Like
 }
 

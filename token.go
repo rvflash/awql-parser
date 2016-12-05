@@ -29,11 +29,13 @@ const (
 	VALUE_LITERAL_LIST
 
 	// Misc characters
-	ASTERISK          // *
-	COMMA             // ,
-	LEFT_PARENTHESIS  // (
-	RIGHT_PARENTHESIS // )
-	SEMICOLON         // ;
+	ASTERISK              // *
+	COMMA                 // ,
+	LEFT_PARENTHESIS      // (
+	RIGHT_PARENTHESIS     // )
+	LEFT_SQUARE_BRACKETS  // [
+	RIGHT_SQUARE_BRACKETS // ]
+	SEMICOLON             // ;
 
 	// Operator
 	EQUAL             // =
