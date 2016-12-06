@@ -221,13 +221,13 @@ func (s *Scanner) scanQuotedString() (Token, string) {
 	// Create a buffer and add the single or double quote into it.
 	quote := s.read()
 	if quote != '\'' && quote != '"' {
-		return ILLEGAL, ""
+		return ILLEGAL, string(quote)
 	}
 	var buf bytes.Buffer
 	for {
 		r := s.read()
 		if r == eof {
-			return ILLEGAL, ""
+			return ILLEGAL, buf.String()
 		} else if r == '\\' {
 			buf.WriteRune(r)
 			// Only the character immediately after the escape can itself be a backslash or quote.

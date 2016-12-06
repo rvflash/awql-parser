@@ -19,7 +19,9 @@ func TestScanner_Scan(t *testing.T) {
 		{s: `#`, t: awql.ILLEGAL, l: `#`},
 		{s: `8`, t: awql.DIGIT, l: `8`},
 		{s: `1.0`, t: awql.DECIMAL, l: `1.0`},
+		{s: `2.0b`, t: awql.DECIMAL, l: `2.0`},
 		{s: `\G`, t: awql.G_MODIFIER, l: `\G`},
+		{s: `\g`, t: awql.ILLEGAL, l: `\`},
 
 		// Misc characters
 		{s: `*`, t: awql.ASTERISK, l: `*`},
@@ -32,16 +34,19 @@ func TestScanner_Scan(t *testing.T) {
 
 		// Literal
 		{s: ` `, t: awql.WHITE_SPACE, l: ` `},
+		{s: `   a`, t: awql.WHITE_SPACE, l: `   `},
 		{s: "\t", t: awql.WHITE_SPACE, l: "\t"},
 		{s: "\n", t: awql.WHITE_SPACE, l: "\n"},
 		{s: `'string'`, t: awql.STRING, l: `string`},
 		{s: `"string"`, t: awql.STRING, l: `string`},
+		{s: `"stri`, t: awql.ILLEGAL, l: `stri`},
 		{s: `"my \"tiny\" string"`, t: awql.STRING, l: `my \"tiny\" string`},
 		{s: `a.b`, t: awql.VALUE_LITERAL, l: `a.b`},
 
 		// Operator
 		{s: `=`, t: awql.EQUAL, l: `=`},
 		{s: `!=`, t: awql.DIFFERENT, l: `!=`},
+		{s: `!-`, t: awql.ILLEGAL, l: `!`},
 		{s: `>`, t: awql.SUPERIOR, l: `>`},
 		{s: `>=`, t: awql.SUPERIOR_OR_EQUAL, l: `>=`},
 		{s: `<`, t: awql.INFERIOR, l: `<`},

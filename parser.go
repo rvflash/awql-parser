@@ -101,15 +101,15 @@ func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 
 	// Next we may see a column name.
 	if tk, literal := p.scanIgnoreWhitespace(); tk == IDENTIFIER {
-		field := Field{}
-		field.ColumnName = literal
+		field := Field{Column{ColumnName: literal}, "", false}
 		stmt.Fields = append(stmt.Fields, field)
 	} else {
 		p.unscan()
 	}
 
 	// Finally, we should find the end of the query.
-	if err := p.scanQueryEnding(stmt); err != nil {
+	var err error
+	if stmt.GModifier, err = p.scanQueryEnding(); err != nil {
 		return nil, err
 	}
 	return stmt, nil
@@ -126,7 +126,7 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 	// Next we may see the "OR" keyword.
 	if tk, _ := p.scanIgnoreWhitespace(); tk == OR {
 		if tk, literal := p.scanIgnoreWhitespace(); tk != REPLACE {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+			return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
 		}
 		stmt.Replace = true
 	} else {
@@ -239,7 +239,8 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 	}
 
 	// Finally, we should find the end of the query.
-	if err := p.scanQueryEnding(stmt); err != nil {
+	var err error
+	if stmt.GModifier, err = p.scanQueryEnding(); err != nil {
 		return nil, err
 	}
 	return stmt, nil
@@ -284,7 +285,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 				case ASTERISK:
 					// Accept the rune '*' only with the count function.
 					if field.Method != "COUNT" {
-						return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+						return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
 					}
 					field.ColumnName = literal
 				case DISTINCT:
@@ -295,7 +296,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 					digit, _ := strconv.Atoi(literal)
 					column, err := stmt.searchColumnByPosition(digit)
 					if err != nil {
-						return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+						return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
 					}
 					field.Column = column.Column
 				case IDENTIFIER:
@@ -522,9 +523,11 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 	}
 
 	// Finally, we should find the end of the query.
-	if err := p.scanQueryEnding(stmt); err != nil {
+	var err error
+	if stmt.GModifier, err = p.scanQueryEnding(); err != nil {
 		return nil, err
 	}
+	fmt.Printf("%#v", stmt.GModifier)
 	return stmt, nil
 }
 
@@ -629,16 +632,16 @@ func (p *Parser) scanValueList() (tk Token, list []string) {
 }
 
 // scanQueryEnding scans the next runes as query ending.
-func (p *Parser) scanQueryEnding(stmt Stmt) error {
+// Return true if vertical output is required or error if it is not the end of the query.
+func (p *Parser) scanQueryEnding() (bool, error) {
 	tk, literal := p.scanIgnoreWhitespace()
 	switch tk {
 	case G_MODIFIER:
-		stmt.SetVerticalOutput(true)
-		fallthrough
+		return true, nil
 	case SEMICOLON, EOF:
-		return nil
+		return false, nil
 	}
-	return errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+	return false, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
 }
 
 // unscan pushes the previously read token back onto the buffer.

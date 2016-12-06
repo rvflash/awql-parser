@@ -51,17 +51,11 @@ type Statement struct {
 // OutputStmt formats the query output.
 type Stmt interface {
 	VerticalOutput() bool
-	SetVerticalOutput(bool)
 }
 
 // VerticalOutput returns true if the G modifier is required.
 func (s Statement) VerticalOutput() bool {
 	return s.GModifier
-}
-
-// SetVerticalOutput specifies if the G modifier is required.
-func (s Statement) SetVerticalOutput(on bool) {
-	s.GModifier = on
 }
 
 // DataStatement represents a AWQL base statement.
