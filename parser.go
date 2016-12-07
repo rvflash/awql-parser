@@ -23,18 +23,21 @@ type Parser struct {
 
 // Error messages
 var (
-	ErrMsgBadStmt    = "ParserError.UNKWOWN_STATEMENT"
-	ErrMsgMissingSrc = "ParserError.MISSING_SOURCE"
-	ErrMsgBadColumn  = "ParserError.UNKNOWN_COLUMN (%s)"
-	ErrMsgBadMethod  = "ParserError.INVALID_METHOD (%s)"
-	ErrMsgBadField   = "ParserError.INVALID_FIELD (%s)"
-	ErrMsgBadFunc    = "ParserError.INVALID_FUNCTION (%s)"
-	ErrMsgBadSrc     = "ParserError.INVALID_SOURCE (%s)"
-	ErrMsgBadDuring  = "ParserError.INVALID_DURING (%s)"
-	ErrMsgBadGroup   = "ParserError.INVALID_GROUP_BY (%s)"
-	ErrMsgBadOrder   = "ParserError.INVALID_ORDER_BY (%s)"
-	ErrMsgBadLimit   = "ParserError.INVALID_LIMIT (%s)"
-	ErrMsgSyntax     = "ParserError.SYNTAX_NEAR (%s)"
+	ErrMsgBadStmt        = "ParserError.UNKWOWN_STATEMENT"
+	ErrMsgMissingSrc     = "ParserError.MISSING_SOURCE"
+	ErrMsgBadColumn      = "ParserError.UNKNOWN_COLUMN (%s)"
+	ErrMsgBadMethod      = "ParserError.INVALID_METHOD (%s)"
+	ErrMsgBadField       = "ParserError.INVALID_FIELD (%s)"
+	ErrMsgBadFunc        = "ParserError.INVALID_FUNCTION (%s)"
+	ErrMsgBadSrc         = "ParserError.INVALID_SOURCE (%s)"
+	ErrMsgBadDuring      = "ParserError.INVALID_DURING (%s)"
+	ErrMsgBadGroup       = "ParserError.INVALID_GROUP_BY (%s)"
+	ErrMsgBadOrder       = "ParserError.INVALID_ORDER_BY (%s)"
+	ErrMsgBadLimit       = "ParserError.INVALID_LIMIT (%s)"
+	ErrMsgSyntax         = "ParserError.SYNTAX_NEAR (%s)"
+	ErrMsgDuringSize     = "unexpected number of date range"
+	ErrMsgDuringLitSize  = "expected date range literal"
+	ErrMsgDuringDateSize = "expected no literal date"
 )
 
 // NewParser returns a new instance of Parser.
@@ -151,15 +154,10 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 			if tk, literal := p.scanIgnoreWhitespace(); tk == RIGHT_PARENTHESIS {
 				break
 			} else if tk == IDENTIFIER {
-				field := Field{}
-				field.ColumnName = literal
-				stmt.Fields = append(stmt.Fields, field)
-
+				stmt.Fields = append(stmt.Fields, Field{Column: Column{ColumnName: literal}})
+			} else if tk == COMMA {
 				// If the next token is not an "COMMA" then break the loop.
-				if tk, _ := p.scanIgnoreWhitespace(); tk != COMMA {
-					p.unscan()
-					break
-				}
+				continue
 			} else {
 				return nil, errors.New(fmt.Sprintf(ErrMsgBadField, literal))
 			}
@@ -306,7 +304,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 				}
 
 				// Next, we expect the end of the function.
-				if tk, _ := p.scanIgnoreWhitespace(); tk == RIGHT_PARENTHESIS {
+				if tk, _ := p.scanIgnoreWhitespace(); tk != RIGHT_PARENTHESIS {
 					return nil, errors.New(fmt.Sprintf(ErrMsgBadFunc, literal))
 				}
 			}
@@ -418,12 +416,12 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 			}
 		}
 		// Checks expected bounds.
-		if rangeSize := len(stmt.During); rangeSize < 1 || rangeSize > 2 {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, "unexpected number of date range"))
+		if rangeSize := len(stmt.During); rangeSize > 2 {
+			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringSize))
 		} else if rangeSize == 1 && !dateLiteral {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, "expected date range literal"))
+			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringLitSize))
 		} else if rangeSize == 2 && dateLiteral {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, "expected no literal date"))
+			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringDateSize))
 		}
 	} else {
 		// No during clause.
@@ -593,37 +591,40 @@ func (p *Parser) scanIgnoreWhitespace() (tk Token, literal string) {
 // Use comma as separator to return a list of string or literal value.
 func (p *Parser) scanValueList() (tk Token, list []string) {
 	// A list must begin with a left square brackets.
-	if tk, _ = p.scanIgnoreWhitespace(); tk != LEFT_SQUARE_BRACKETS {
+	if ctk, _ := p.scanIgnoreWhitespace(); ctk != LEFT_SQUARE_BRACKETS {
 		return
 	}
-	// Get all values of the list.
+	// Get all values of the list and names the loop on it: L
+L:
 	for {
-		tk, literal := p.scanIgnoreWhitespace()
-		if tk == EOF {
+		ctk, literal := p.scanIgnoreWhitespace()
+		switch ctk {
+		case EOF:
 			tk = ILLEGAL
-			break
-		} else if tk == STRING {
-			// A list can only be string list or a value literal list but not the both.
-			if tk == VALUE_LITERAL_LIST {
-				tk = ILLEGAL
-				break
-			}
-			// Consume as string.
-			tk = STRING_LIST
-		} else if tk == VALUE_LITERAL || tk == IDENTIFIER {
+			break L
+		case RIGHT_SQUARE_BRACKETS:
+			// End of the list.
+			break L
+		case VALUE_LITERAL, IDENTIFIER, DECIMAL, DIGIT:
 			// A list can only be string list or a value literal list but not the both.
 			if tk == STRING_LIST {
 				tk = ILLEGAL
-				break
+				break L
 			}
 			// Consume as value literal.
 			tk = VALUE_LITERAL_LIST
-		} else if tk == RIGHT_SQUARE_BRACKETS {
-			// End of the list.
-			break
-		} else if tk != COMMA {
+		case STRING:
+			// A list can only be string list or a value literal list but not the both.
+			if tk == VALUE_LITERAL_LIST {
+				tk = ILLEGAL
+				break L
+			}
+			tk = STRING_LIST
+		case COMMA:
+			continue L
+		default:
 			tk = ILLEGAL
-			break
+			break L
 		}
 		list = append(list, literal)
 	}
