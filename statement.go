@@ -1,5 +1,10 @@
 package awql
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Column represents a column.
 type Column struct {
 	ColumnName, ColumnAlias string
@@ -143,6 +148,7 @@ type SelectStmt interface {
 	OrderList() []*Ordering
 	StartIndex() int
 	PageSize() (int, bool)
+	fmt.Stringer
 }
 
 // ConditionList returns the condition list.
@@ -179,6 +185,63 @@ func (s SelectStatement) StartIndex() int {
 // It implements the SelectStmt interface.
 func (s SelectStatement) PageSize() (int, bool) {
 	return s.RowCount, s.WithRowCount
+}
+
+// String formats a SelectStmt as expected by Google Adwords.
+// Indeed, aggregate functions, ORDER BY, GROUP BY and LIMIT are not supported for reports.
+func (s SelectStatement) String() (q string) {
+	if len(s.Fields) == 0 || s.TableName == "" {
+		return
+	}
+	// Concat selected fields.
+	q = "SELECT "
+	for i, c := range s.Fields {
+		if i > 0 {
+			q += ", "
+		}
+		q += c.ColumnName
+	}
+	// Data source
+	q += " FROM " + s.TableName
+	// Conditions
+	if len(s.Where) > 0 {
+		q += " WHERE "
+		for i, c := range s.Where {
+			if i > 0 {
+				q += " AND "
+			}
+			q += c.ColumnName + " " + c.Operator
+			if len(c.Value) > 1 {
+				q += " ["
+				for y, v := range c.Value {
+					if y > 0 {
+						q += " ,"
+					}
+					if c.IsValueLiteral {
+						q += " " + v
+					} else {
+						q += " " + strconv.Quote(v)
+					}
+				}
+				q += " ]"
+			} else if c.IsValueLiteral {
+				q += " " + c.Value[0]
+			} else {
+				q += " " + strconv.Quote(c.Value[0])
+			}
+		}
+	}
+	// Range date
+	if ds := len(s.During); ds > 0 {
+		q += " DURING "
+		if ds == 2 {
+			q += s.During[0] + "," + s.During[1]
+		} else {
+			// Literal range date
+			q += s.During[0]
+		}
+	}
+	return
 }
 
 // CreateViewStatement represents a AWQL CREATE VIEW statement.

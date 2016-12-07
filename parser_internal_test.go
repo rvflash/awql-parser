@@ -54,6 +54,27 @@ func TestParser_parseSelect(t *testing.T) {
 			},
 		},
 
+		// Select all statement on view with condition and range date.
+		{
+			q: `SELECT * FROM CAMPAIGN_DAILY WHERE CampaignId = 12345678 DURING YESTERDAY;\G`,
+			stmt: &SelectStatement{
+				DataStatement: DataStatement{
+					Fields: []Field{
+						{Column{ColumnName: "*"}, "", false},
+					},
+					TableName: "CAMPAIGN_DAILY",
+					Statement: Statement{GModifier: false},
+				},
+				Where: []Condition{
+					{Column{ColumnName: "CampaignId"}, "=", []string{"12345678"}, true},
+				},
+				During:  []string{"YESTERDAY"},
+				GroupBy: []*ColumnPosition(nil),
+				OrderBy: []*Ordering(nil),
+				Limit:   Limit{},
+			},
+		},
+
 		// Errors
 		{q: `DELETE`, err: fmt.Sprintf(ErrMsgBadMethod, "DELETE")},
 		{q: `SELECT !`, err: fmt.Sprintf(ErrMsgBadField, "!")},
@@ -69,10 +90,12 @@ func TestParser_parseSelect(t *testing.T) {
 			if qt.err != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
 			}
+			continue
 		} else if qt.err != "" {
 			t.Errorf("%d. Expected the error message %v with %s, received no error", i, qt.err, qt.q)
 		} else if !reflect.DeepEqual(qt.stmt, stmt) {
 			t.Errorf("%d. Expected %#v, received %#v", i, qt.stmt, stmt)
 		}
+		fmt.Println(stmt)
 	}
 }
