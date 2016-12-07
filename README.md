@@ -1,10 +1,12 @@
 # Awql Parser
 
- Parser for parsing AWQL SELECT statements.
+ Parser for parsing AWQL SELECT, DESCRIBE, SHOW and CREATE VIEW statements.
+ 
+ Only the first statement is supported by Adwords API, the others are proposed by the AWQL command line tool.
  
 ## Example
  
- ```golang
+ ```go
  q := `SELECT CampaignName FROM CAMPAIGN_PERFORMACE_REPORT ORDER BY 1 LIMIT 5\G`
 stmts, _ := NewParser(strings.NewReader(q)).Parse()
 if stmt, ok := stmts[0].(SelectStmt); ok {
