@@ -48,7 +48,7 @@ type Statement struct {
 	GModifier bool
 }
 
-// OutputStmt formats the query output.
+// Stmt formats the query output.
 type Stmt interface {
 	VerticalOutput() bool
 }
@@ -65,7 +65,7 @@ type DataStatement struct {
 	Statement
 }
 
-// Stmt represents a AWQL base statement.
+// DataStmt represents a AWQL base statement.
 // By design, only the SELECT statement is supported by Adwords.
 // The AWQL command line tool extends it with others SQL grammar.
 type DataStmt interface {
