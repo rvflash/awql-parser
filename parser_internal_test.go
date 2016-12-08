@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Ensure the parser can parse strings into DESCRIBE Statement.
+// Ensure the parser can parse strings into CREATE VIEW Statement.
 func TestParser_parseCreateView(t *testing.T) {
 	var queryTests = []struct {
 		q    string

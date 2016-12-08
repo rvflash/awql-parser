@@ -7,7 +7,7 @@
 ## Example
  
  ```go
- q := `SELECT CampaignName FROM CAMPAIGN_PERFORMACE_REPORT ORDER BY 1 LIMIT 5\G`
+q := `SELECT CampaignName FROM CAMPAIGN_PERFORMACE_REPORT ORDER BY 1 LIMIT 5\G`
 stmts, _ := NewParser(strings.NewReader(q)).Parse()
 if stmt, ok := stmts[0].(SelectStmt); ok {
     fmt.Println(stmt.OrderList()[0].ColumnName)

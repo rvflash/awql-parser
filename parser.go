@@ -84,7 +84,7 @@ func (p *Parser) Parse() (statements []Stmt, err error) {
 func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 	// First token should be a "DESC" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != DESC && tk != DESCRIBE {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
 	}
 	stmt := &DescribeStatement{}
 
@@ -99,7 +99,7 @@ func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 	if tk, literal := p.scanIgnoreWhitespace(); tk == IDENTIFIER {
 		stmt.TableName = literal
 	} else {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadSrc, literal))
+		return nil, fmt.Errorf(ErrMsgBadSrc, literal)
 	}
 
 	// Next we may see a column name.
@@ -122,14 +122,14 @@ func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 	// First token should be a "CREATE" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != CREATE {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
 	}
 	stmt := &CreateViewStatement{}
 
 	// Next we may see the "OR" keyword.
 	if tk, _ := p.scanIgnoreWhitespace(); tk == OR {
 		if tk, literal := p.scanIgnoreWhitespace(); tk != REPLACE {
-			return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+			return nil, fmt.Errorf(ErrMsgSyntax, literal)
 		}
 		stmt.Replace = true
 	} else {
@@ -138,13 +138,13 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 
 	// Next we should see the "VIEW" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != VIEW {
-		return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+		return nil, fmt.Errorf(ErrMsgSyntax, literal)
 	}
 
 	// Next we should read the view name.
 	tk, literal := p.scanIgnoreWhitespace()
 	if tk != IDENTIFIER {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadSrc, literal))
+		return nil, fmt.Errorf(ErrMsgBadSrc, literal)
 	}
 	stmt.TableName = literal
 
@@ -159,7 +159,7 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 				// If the next token is not an "COMMA" then break the loop.
 				continue
 			} else {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadField, literal))
+				return nil, fmt.Errorf(ErrMsgBadField, literal)
 			}
 		}
 	} else {
@@ -168,7 +168,7 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 
 	// Next we should see the "AS" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != AS {
-		return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+		return nil, fmt.Errorf(ErrMsgSyntax, literal)
 	}
 
 	// And finally, the query source of the view.
@@ -184,7 +184,7 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 func (p *Parser) parseShow() (*ShowStatement, error) {
 	// First token should be a "SHOW" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != SHOW {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
 	}
 	stmt := &ShowStatement{}
 
@@ -197,7 +197,7 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 
 	// Next we should see the "TABLES" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != TABLES {
-		return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+		return nil, fmt.Errorf(ErrMsgSyntax, literal)
 	}
 
 	// Next we may find a LIKE or WITH keyword.
@@ -207,7 +207,7 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 		switch tk {
 		case IDENTIFIER:
 			if clause == LIKE {
-				return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, pattern))
+				return nil, fmt.Errorf(ErrMsgSyntax, pattern)
 			}
 			stmt.With = pattern
 		case STRING:
@@ -216,9 +216,9 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 				wl := strings.HasPrefix(pattern, wildcard)
 				wr := strings.HasSuffix(pattern, wildcard)
 				like := Pattern{}
-				if wl == wr && wl == true {
+				if wl == wr && wl {
 					like.Contains = strings.Trim(pattern, wildcard)
-				} else if wl == wr && wl == false {
+				} else if wl == wr && !wl {
 					like.Equal = pattern
 				} else if wl {
 					like.Suffix = strings.TrimPrefix(pattern, wildcard)
@@ -230,7 +230,7 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 				stmt.With = pattern
 			}
 		default:
-			return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, pattern))
+			return nil, fmt.Errorf(ErrMsgSyntax, pattern)
 		}
 	} else {
 		p.unscan()
@@ -248,7 +248,7 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 func (p *Parser) parseSelect() (*SelectStatement, error) {
 	// First token should be a "SELECT" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != SELECT {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadMethod, literal))
+		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
 	}
 	stmt := &SelectStatement{}
 
@@ -272,7 +272,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 				p.unscan()
 			} else if !isFunction(literal) {
 				// This function does not exist.
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadFunc, literal))
+				return nil, fmt.Errorf(ErrMsgBadFunc, literal)
 			} else {
 				// It is an aggregate function.
 				field.Method = strings.ToUpper(literal)
@@ -283,7 +283,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 				case ASTERISK:
 					// Accept the rune '*' only with the count function.
 					if field.Method != "COUNT" {
-						return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+						return nil, fmt.Errorf(ErrMsgSyntax, literal)
 					}
 					field.ColumnName = literal
 				case DISTINCT:
@@ -294,29 +294,29 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 					digit, _ := strconv.Atoi(literal)
 					column, err := stmt.searchColumnByPosition(digit)
 					if err != nil {
-						return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+						return nil, fmt.Errorf(ErrMsgSyntax, literal)
 					}
 					field.Column = column.Column
 				case IDENTIFIER:
 					field.ColumnName = literal
 				default:
-					return nil, errors.New(fmt.Sprintf(ErrMsgBadFunc, literal))
+					return nil, fmt.Errorf(ErrMsgBadFunc, literal)
 				}
 
 				// Next, we expect the end of the function.
 				if tk, _ := p.scanIgnoreWhitespace(); tk != RIGHT_PARENTHESIS {
-					return nil, errors.New(fmt.Sprintf(ErrMsgBadFunc, literal))
+					return nil, fmt.Errorf(ErrMsgBadFunc, literal)
 				}
 			}
 		default:
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadField, literal))
+			return nil, fmt.Errorf(ErrMsgBadField, literal)
 		}
 
 		// Next we may find an alias name for the column.
 		if tk, _ := p.scanIgnoreWhitespace(); tk == AS {
 			// By using the "AS" keyword.
 			if tk, literal := p.scanIgnoreWhitespace(); tk != IDENTIFIER {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadField, literal))
+				return nil, fmt.Errorf(ErrMsgBadField, literal)
 			} else {
 				field.ColumnAlias = literal
 			}
@@ -343,7 +343,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 
 	// Next we should read the table name.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != IDENTIFIER {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadSrc, literal))
+		return nil, fmt.Errorf(ErrMsgBadSrc, literal)
 	} else {
 		stmt.TableName = literal
 	}
@@ -354,13 +354,13 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 			// Parse each condition, begin by the column name.
 			cond := Condition{}
 			if tk, literal := p.scanIgnoreWhitespace(); tk != IDENTIFIER {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadField, literal))
+				return nil, fmt.Errorf(ErrMsgBadField, literal)
 			} else {
 				cond.ColumnName = literal
 			}
 			// Expects the operator.
 			if tk, literal := p.scanIgnoreWhitespace(); !isOperator(tk) {
-				return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+				return nil, fmt.Errorf(ErrMsgSyntax, literal)
 			} else {
 				cond.Operator = literal
 			}
@@ -375,12 +375,12 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 			case LEFT_SQUARE_BRACKETS:
 				p.unscan()
 				if tk, cond.Value = p.scanValueList(); tk != VALUE_LITERAL_LIST && tk != STRING_LIST {
-					return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+					return nil, fmt.Errorf(ErrMsgSyntax, literal)
 				} else if tk == VALUE_LITERAL_LIST {
 					cond.IsValueLiteral = true
 				}
 			default:
-				return nil, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+				return nil, fmt.Errorf(ErrMsgSyntax, literal)
 			}
 			stmt.Where = append(stmt.Where, cond)
 
@@ -407,7 +407,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 				stmt.During = append(stmt.During, literal)
 				dateLiteral = true
 			} else {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, literal))
+				return nil, fmt.Errorf(ErrMsgBadDuring, literal)
 			}
 			// If the next token is not a comma then break the loop.
 			if tk, _ := p.scanIgnoreWhitespace(); tk != COMMA {
@@ -417,11 +417,11 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 		}
 		// Checks expected bounds.
 		if rangeSize := len(stmt.During); rangeSize > 2 {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringSize))
+			return nil, fmt.Errorf(ErrMsgBadDuring, ErrMsgDuringSize)
 		} else if rangeSize == 1 && !dateLiteral {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringLitSize))
+			return nil, fmt.Errorf(ErrMsgBadDuring, ErrMsgDuringLitSize)
 		} else if rangeSize == 2 && dateLiteral {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringDateSize))
+			return nil, fmt.Errorf(ErrMsgBadDuring, ErrMsgDuringDateSize)
 		}
 	} else {
 		// No during clause.
@@ -431,17 +431,17 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 	// Next we may see a "GROUP" keyword.
 	if tk, _ := p.scanIgnoreWhitespace(); tk == GROUP {
 		if tk, literal := p.scanIgnoreWhitespace(); tk != BY {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadGroup, literal))
+			return nil, fmt.Errorf(ErrMsgBadGroup, literal)
 		}
 		for {
 			// Read the field used to group.
 			tk, literal := p.scanIgnoreWhitespace()
 			if tk != IDENTIFIER && tk != DIGIT {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadGroup, literal))
+				return nil, fmt.Errorf(ErrMsgBadGroup, literal)
 			}
 			// Check if the column exists as field.
 			if groupBy, err := stmt.searchColumn(literal); err != nil {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadGroup, err.Error()))
+				return nil, fmt.Errorf(ErrMsgBadGroup, err.Error())
 			} else {
 				stmt.GroupBy = append(stmt.GroupBy, groupBy)
 			}
@@ -459,13 +459,13 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 	// Next we may see a "ORDER" keyword.
 	if tk, _ := p.scanIgnoreWhitespace(); tk == ORDER {
 		if tk, literal := p.scanIgnoreWhitespace(); tk != BY {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadOrder, literal))
+			return nil, fmt.Errorf(ErrMsgBadOrder, literal)
 		}
 		for {
 			// Read the field used to order.
 			tk, literal := p.scanIgnoreWhitespace()
 			if tk != IDENTIFIER && tk != DIGIT {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadOrder, literal))
+				return nil, fmt.Errorf(ErrMsgBadOrder, literal)
 			}
 			// Check if the column exists as field.
 			orderBy := &Ordering{}
@@ -497,7 +497,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 	if tk, _ := p.scanIgnoreWhitespace(); tk == LIMIT {
 		var literal string
 		if tk, literal = p.scanIgnoreWhitespace(); tk != DIGIT {
-			return nil, errors.New(fmt.Sprintf(ErrMsgBadLimit, literal))
+			return nil, fmt.Errorf(ErrMsgBadLimit, literal)
 		}
 		offset, _ := strconv.Atoi(literal)
 		stmt.WithRowCount = true
@@ -505,7 +505,7 @@ func (p *Parser) parseSelect() (*SelectStatement, error) {
 		// If the next token is a comma then we should get the row count.
 		if tk, _ := p.scanIgnoreWhitespace(); tk == COMMA {
 			if tk, literal := p.scanIgnoreWhitespace(); tk != DIGIT {
-				return nil, errors.New(fmt.Sprintf(ErrMsgBadLimit, stmt.RowCount))
+				return nil, fmt.Errorf(ErrMsgBadLimit, stmt.RowCount)
 			} else {
 				stmt.Offset = offset
 				stmt.RowCount, _ = strconv.Atoi(literal)
@@ -535,7 +535,7 @@ func (s SelectStatement) searchColumn(expr string) (*ColumnPosition, error) {
 		if column, err := s.searchColumnByPosition(pos); err == nil {
 			return column, nil
 		}
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadColumn, expr))
+		return nil, fmt.Errorf(ErrMsgBadColumn, expr)
 	}
 	// Otherwise fetch each column to find it by name or alias.
 	for i, field := range s.Fields {
@@ -543,13 +543,13 @@ func (s SelectStatement) searchColumn(expr string) (*ColumnPosition, error) {
 			return &ColumnPosition{Column: field.Column, Position: (i + 1)}, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf(ErrMsgBadColumn, expr))
+	return nil, fmt.Errorf(ErrMsgBadColumn, expr)
 }
 
 // searchColumnByPosition returns the column matching the search position.
 func (s DataStatement) searchColumnByPosition(pos int) (*ColumnPosition, error) {
 	if pos < 1 || pos > len(s.Fields) {
-		return nil, errors.New(fmt.Sprintf(ErrMsgBadColumn, pos))
+		return nil, fmt.Errorf(ErrMsgBadColumn, pos)
 	}
 	return &ColumnPosition{Column: s.Fields[(pos - 1)].Column, Position: pos}, nil
 }
@@ -570,7 +570,7 @@ func (p *Parser) scan() (Token, string) {
 func (p *Parser) scanDistinct(field *Field) error {
 	tk, literal := p.scanIgnoreWhitespace()
 	if tk != IDENTIFIER {
-		return errors.New(fmt.Sprintf(ErrMsgBadField, literal))
+		return fmt.Errorf(ErrMsgBadField, literal)
 	}
 	field.Distinct = true
 	field.ColumnName = literal
@@ -641,7 +641,7 @@ func (p *Parser) scanQueryEnding() (bool, error) {
 	case SEMICOLON, EOF:
 		return false, nil
 	}
-	return false, errors.New(fmt.Sprintf(ErrMsgSyntax, literal))
+	return false, fmt.Errorf(ErrMsgSyntax, literal)
 }
 
 // unscan pushes the previously read token back onto the buffer.
