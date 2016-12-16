@@ -1,10 +1,10 @@
-package awql_test
+package awqlparse_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/rvflash/awql-parser"
+	awql "github.com/rvflash/awql-parser"
 )
 
 // Ensure the scanner can scan tokens correctly.

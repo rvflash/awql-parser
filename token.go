@@ -1,4 +1,4 @@
-package awql
+package awqlparse
 
 /*
 Base AWQL grammar
