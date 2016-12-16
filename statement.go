@@ -1,4 +1,4 @@
-package awql
+package awqlparse
 
 // Column represents a column.
 type Column struct {

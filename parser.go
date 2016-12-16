@@ -1,4 +1,4 @@
-package awql
+package awqlparse
 
 import (
 	"errors"
