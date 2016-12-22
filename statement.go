@@ -1,5 +1,7 @@
 package awqlparse
 
+import "fmt"
+
 // Column represents a column.
 type Column struct {
 	ColumnName, ColumnAlias string
@@ -153,6 +155,7 @@ type SelectStmt interface {
 	OrderList() []*Ordering
 	StartIndex() int
 	PageSize() (int, bool)
+	fmt.Stringer
 }
 
 // ConditionList returns the condition list.
