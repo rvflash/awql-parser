@@ -199,7 +199,8 @@ func TestParser_ParseShow(t *testing.T) {
 		{
 			q: `SHOW TABLES WITH CampaignName;`,
 			stmt: &ShowStatement{
-				With: "CampaignName",
+				With:    "CampaignName",
+				UseWith: true,
 			},
 		},
 
@@ -207,7 +208,17 @@ func TestParser_ParseShow(t *testing.T) {
 		{
 			q: `SHOW TABLES WITH "CampaignName";`,
 			stmt: &ShowStatement{
-				With: "CampaignName",
+				With:    "CampaignName",
+				UseWith: true,
+			},
+		},
+
+		// Show statement with no column.
+		{
+			q: `SHOW TABLES WITH "";`,
+			stmt: &ShowStatement{
+				With:    "",
+				UseWith: true,
 			},
 		},
 
