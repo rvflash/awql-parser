@@ -80,6 +80,15 @@ func (p *Parser) Parse() (statements []Stmt, err error) {
 	return
 }
 
+// ParseRow parses a AWQL statement and returns only the first.
+func (p *Parser) ParseRow() (Stmt, error) {
+	stmts, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+	return stmts[0], nil
+}
+
 // parseDescribe parses a AWQL DESCRIBE statement.
 func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 	// First token should be a "DESC" keyword.
