@@ -234,16 +234,22 @@ type FullStatement struct {
 	Full bool
 }
 
-// DescribeStatement represents a AWQL DESC statement.
-// DESC...FULL
-type DescribeStatement struct {
-	FullStatement
-	DataStatement
+// FullMode returns true if the full display is required.
+// It implements the DescribeStmt interface.
+func (s FullStatement) FullMode() bool {
+	return s.Full
 }
 
 // FullStmt proposes the full statement mode.
 type FullStmt interface {
 	FullMode() bool
+}
+
+// DescribeStatement represents a AWQL DESC statement.
+// DESC...FULL
+type DescribeStatement struct {
+	FullStatement
+	DataStatement
 }
 
 /*
@@ -257,12 +263,6 @@ DescribeClause   : (DESCRIBE | DESC) (FULL)* SourceName (ColumnName)*
 type DescribeStmt interface {
 	DataStmt
 	FullStmt
-}
-
-// FullMode returns true if the full display is required.
-// It implements the DescribeStmt interface.
-func (s DescribeStatement) FullMode() bool {
-	return s.Full
 }
 
 // ShowStatement represents a AWQL SHOW statement.
