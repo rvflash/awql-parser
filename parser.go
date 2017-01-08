@@ -54,16 +54,16 @@ func (p *Parser) Parse() (statements []Stmt, err error) {
 		switch tk {
 		case DESC, DESCRIBE:
 			p.unscan()
-			stmt, err = p.parseDescribe()
+			stmt, err = p.ParseDescribe()
 		case CREATE:
 			p.unscan()
-			stmt, err = p.parseCreateView()
+			stmt, err = p.ParseCreateView()
 		case SELECT:
 			p.unscan()
-			stmt, err = p.parseSelect()
+			stmt, err = p.ParseSelect()
 		case SHOW:
 			p.unscan()
-			stmt, err = p.parseShow()
+			stmt, err = p.ParseShow()
 		default:
 			err = errors.New(ErrMsgBadStmt)
 		}
@@ -75,6 +75,8 @@ func (p *Parser) Parse() (statements []Stmt, err error) {
 		// If the next token is EOF, break the loop.
 		if tk, _ := p.scanIgnoreWhitespace(); tk == EOF {
 			break
+		} else {
+			p.unscan()
 		}
 	}
 	return
@@ -89,8 +91,8 @@ func (p *Parser) ParseRow() (Stmt, error) {
 	return stmts[0], nil
 }
 
-// parseDescribe parses a AWQL DESCRIBE statement.
-func (p *Parser) parseDescribe() (*DescribeStatement, error) {
+// ParseDescribe parses a AWQL DESCRIBE statement.
+func (p *Parser) ParseDescribe() (DescribeStmt, error) {
 	// First token should be a "DESC" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != DESC && tk != DESCRIBE {
 		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
@@ -127,8 +129,8 @@ func (p *Parser) parseDescribe() (*DescribeStatement, error) {
 	return stmt, nil
 }
 
-// parseCreateView parses a AWQL CREATE VIEW statement.
-func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
+// ParseCreateView parses a AWQL CREATE VIEW statement.
+func (p *Parser) ParseCreateView() (CreateViewStmt, error) {
 	// First token should be a "CREATE" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != CREATE {
 		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
@@ -181,16 +183,16 @@ func (p *Parser) parseCreateView() (*CreateViewStatement, error) {
 	}
 
 	// And finally, the query source of the view.
-	if selectStmt, err := p.parseSelect(); err != nil {
+	if selectStmt, err := p.ParseSelect(); err != nil {
 		return nil, err
 	} else {
-		stmt.View = selectStmt
+		stmt.View = selectStmt.(*SelectStatement)
 	}
 	return stmt, nil
 }
 
-// parseShow parses a AWQL SHOW statement.
-func (p *Parser) parseShow() (*ShowStatement, error) {
+// ParseShow parses a AWQL SHOW statement.
+func (p *Parser) ParseShow() (ShowStmt, error) {
 	// First token should be a "SHOW" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != SHOW {
 		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
@@ -254,7 +256,7 @@ func (p *Parser) parseShow() (*ShowStatement, error) {
 }
 
 // Parse parses a AWQL SELECT statement.
-func (p *Parser) parseSelect() (*SelectStatement, error) {
+func (p *Parser) ParseSelect() (SelectStmt, error) {
 	// First token should be a "SELECT" keyword.
 	if tk, literal := p.scanIgnoreWhitespace(); tk != SELECT {
 		return nil, fmt.Errorf(ErrMsgBadMethod, literal)
@@ -649,6 +651,8 @@ func (p *Parser) scanQueryEnding() (bool, error) {
 		return true, nil
 	case SEMICOLON, EOF:
 		return false, nil
+	default:
+		p.unscan()
 	}
 	return false, fmt.Errorf(ErrMsgSyntax, literal)
 }
