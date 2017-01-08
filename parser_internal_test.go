@@ -8,7 +8,7 @@ import (
 )
 
 // Ensure the parser can parse strings into CREATE VIEW Statement.
-func TestParser_parseCreateView(t *testing.T) {
+func TestParser_ParseCreateView(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *CreateViewStatement
@@ -65,7 +65,7 @@ func TestParser_parseCreateView(t *testing.T) {
 	}
 
 	for i, qt := range queryTests {
-		stmt, err := NewParser(strings.NewReader(qt.q)).parseCreateView()
+		stmt, err := NewParser(strings.NewReader(qt.q)).ParseCreateView()
 		if err != nil {
 			if qt.err != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
@@ -79,7 +79,7 @@ func TestParser_parseCreateView(t *testing.T) {
 }
 
 // Ensure the parser can parse strings into DESCRIBE Statement.
-func TestParser_parseDescribe(t *testing.T) {
+func TestParser_ParseDescribe(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *DescribeStatement
@@ -126,7 +126,7 @@ func TestParser_parseDescribe(t *testing.T) {
 	}
 
 	for i, qt := range queryTests {
-		stmt, err := NewParser(strings.NewReader(qt.q)).parseDescribe()
+		stmt, err := NewParser(strings.NewReader(qt.q)).ParseDescribe()
 		if err != nil {
 			if qt.err != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
@@ -140,7 +140,7 @@ func TestParser_parseDescribe(t *testing.T) {
 }
 
 // Ensure the parser can parse strings into SHOW Statement.
-func TestParser_parseShow(t *testing.T) {
+func TestParser_ParseShow(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *ShowStatement
@@ -219,7 +219,7 @@ func TestParser_parseShow(t *testing.T) {
 	}
 
 	for i, qt := range queryTests {
-		stmt, err := NewParser(strings.NewReader(qt.q)).parseShow()
+		stmt, err := NewParser(strings.NewReader(qt.q)).ParseShow()
 		if err != nil {
 			if qt.err != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
@@ -233,7 +233,7 @@ func TestParser_parseShow(t *testing.T) {
 }
 
 // Ensure the parser can parse strings into SELECT Statement.
-func TestParser_parseSelect(t *testing.T) {
+func TestParser_ParseSelect(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *SelectStatement
@@ -396,7 +396,7 @@ func TestParser_parseSelect(t *testing.T) {
 	}
 
 	for i, qt := range queryTests {
-		stmt, err := NewParser(strings.NewReader(qt.q)).parseSelect()
+		stmt, err := NewParser(strings.NewReader(qt.q)).ParseSelect()
 		if err != nil {
 			if qt.err != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
