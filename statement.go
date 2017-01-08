@@ -269,8 +269,9 @@ type DescribeStmt interface {
 // SHOW...FULL...TABLES...LIKE...WITH
 type ShowStatement struct {
 	FullStatement
-	Like Pattern
-	With string
+	Like    Pattern
+	With    string
+	UseWith bool
 	Statement
 }
 
@@ -312,5 +313,5 @@ func (s ShowStatement) LikePattern() (Pattern, bool) {
 // WithColumnName returns the column name used to search table with this column.
 // It implements the ShowStmt interface.
 func (s ShowStatement) WithColumnName() (string, bool) {
-	return s.With, s.With != ""
+	return s.With, s.UseWith
 }

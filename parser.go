@@ -221,6 +221,7 @@ func (p *Parser) ParseShow() (ShowStmt, error) {
 				return nil, fmt.Errorf(ErrMsgSyntax, pattern)
 			}
 			stmt.With = pattern
+			stmt.UseWith = true
 		case STRING:
 			if clause == LIKE {
 				// Like clause can have a wildcard characters in the pattern.
@@ -239,6 +240,7 @@ func (p *Parser) ParseShow() (ShowStmt, error) {
 				stmt.Like = like
 			} else {
 				stmt.With = pattern
+				stmt.UseWith = true
 			}
 		default:
 			return nil, fmt.Errorf(ErrMsgSyntax, pattern)
