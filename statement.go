@@ -286,19 +286,31 @@ LikeClause   : LIKE String
 */
 type ShowStmt interface {
 	FullStmt
-	LikePattern() Pattern
-	WithColumnName() string
+	LikePattern() (Pattern, bool)
+	WithColumnName() (string, bool)
 	Stmt
 }
 
 // LikePattern returns the pattern used for a like query on the table list.
+// If the second parameter is on, the like clause has been used.
 // It implements the ShowStmt interface.
-func (s ShowStatement) LikePattern() Pattern {
-	return s.Like
+func (s ShowStatement) LikePattern() (Pattern, bool) {
+	var used bool
+	switch {
+	case s.Like.Equal != "":
+		used = true
+	case s.Like.Contains != "":
+		used = true
+	case s.Like.Prefix != "":
+		used = true
+	case s.Like.Suffix != "":
+		used = true
+	}
+	return s.Like, used
 }
 
 // WithColumnName returns the column name used to search table with this column.
 // It implements the ShowStmt interface.
-func (s ShowStatement) WithColumnName() string {
-	return s.With
+func (s ShowStatement) WithColumnName() (string, bool) {
+	return s.With, s.With != ""
 }
