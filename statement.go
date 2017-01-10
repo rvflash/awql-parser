@@ -2,30 +2,112 @@ package awqlparse
 
 import "fmt"
 
+// Field is the interface that must be implemented by a column.
+type Field interface {
+	Name() string
+	Alias() string
+}
+
 // Column represents a column.
+// It implements the DynamicColumn interface.
 type Column struct {
-	ColumnName, ColumnAlias string
+	ColumnName,
+	ColumnAlias string
 }
 
-// ColumnPosition represents a column with it position in the query.
+// NewColumn returns a pointer to a new Column.
+func NewColumn(name, alias string) *Column {
+	return &Column{ColumnName: name, ColumnAlias: alias}
+}
+
+// Name returns the column name.
+func (c *Column) Name() string {
+	return c.ColumnName
+}
+
+// Alias returns the column alias.
+func (c *Column) Alias() string {
+	return c.ColumnAlias
+}
+
+// FieldPosition is the interface that must be implemented by a query's column.
+type FieldPosition interface {
+	Field
+	Position() int
+}
+
+// ColumnPosition represents a column with its position in the query.
+// It implements the FieldPosition interface.
 type ColumnPosition struct {
-	Column
-	Position int
+	*Column
+	ColumnPos int
 }
 
-// Field represents a field.
-type Field struct {
-	Column
-	Method   string
-	Distinct bool
+// NewColumnPosition returns a pointer to a new ColumnPosition.
+func NewColumnPosition(col *Column, pos int) *ColumnPosition {
+	return &ColumnPosition{Column: col, ColumnPos: pos}
 }
 
-// Condition represents a where clause.
-type Condition struct {
-	Column
-	Operator       string
-	Value          []string
+// Position returns the position of the field in the query.
+func (c *ColumnPosition) Position() int {
+	return c.ColumnPos
+}
+
+// DynamicField is the interface that must be implemented by a query's field.
+type DynamicField interface {
+	Field
+	UseFunction() (string, bool)
+	Distinct() bool
+}
+
+// DynamicColumn represents a field.
+// It implements the DynamicField interface.
+type DynamicColumn struct {
+	*Column
+	Method string
+	Unique bool
+}
+
+// NewDynamicColumn returns a pointer to a new DynamicColumn.
+func NewDynamicColumn(col *Column, method string, unique bool) *DynamicColumn {
+	return &DynamicColumn{Column: col, Method: method, Unique: unique}
+}
+
+// UseFunction returns the name of the method to apply of the column.
+// The second parameter indicates if a method is used.
+func (c *DynamicColumn) UseFunction() (string, bool) {
+	return c.Method, c.Method != ""
+}
+
+// Distinct returns true if the column value needs to be unique.
+func (c *DynamicColumn) Distinct() bool {
+	return c.Unique
+}
+
+// Condition is the interface that must be implemented by a condition.
+type Condition interface {
+	Field
+	Operator() string
+	Value() (value []string, literal bool)
+}
+
+// Where represents a condition in where clause.
+// It implements the Condition interface.
+type Where struct {
+	*Column
+	Sign           string
+	ColumnValue    []string
 	IsValueLiteral bool
+}
+
+// Operator returns the condition's operator
+func (c *Where) Operator() string {
+	return c.Sign
+}
+
+// Value returns the column's value of the condition.
+func (c *Where) Value() ([]string, bool) {
+	return c.ColumnValue, c.IsValueLiteral
 }
 
 // Pattern represents a LIKE clause.
@@ -33,10 +115,22 @@ type Pattern struct {
 	Equal, Prefix, Contains, Suffix string
 }
 
-// Ordering represents an order by clause.
-type Ordering struct {
-	ColumnPosition
+// Orderer is the interface that must be implemented by an ordering.
+type Orderer interface {
+	FieldPosition
+	SortDescending() bool
+}
+
+// Order represents an order by clause.
+// It implements the Orderer interface.
+type Order struct {
+	*ColumnPosition
 	SortDesc bool
+}
+
+// SortDescending returns true if the column needs to be sort by desc.
+func (o *Order) SortDescending() bool {
+	return o.SortDesc
 }
 
 // Limit represents a limit clause.
@@ -45,68 +139,47 @@ type Limit struct {
 	WithRowCount     bool
 }
 
-// Statement enables to format the query output.
-type Statement struct {
-	GModifier bool
-}
-
 // Stmt formats the query output.
 type Stmt interface {
 	VerticalOutput() bool
 }
 
-// VerticalOutput returns true if the G modifier is required.
-func (s Statement) VerticalOutput() bool {
-	return s.GModifier
+// Statement enables to format the query output.
+type Statement struct {
+	GModifier bool
 }
 
-// DataStatement represents a AWQL base statement.
-type DataStatement struct {
-	Fields    []Field
-	TableName string
-	Statement
+// VerticalOutput returns true if the G modifier is required.
+// It implements the Stmt interface.
+func (s Statement) VerticalOutput() bool {
+	return s.GModifier
 }
 
 // DataStmt represents a AWQL base statement.
 // By design, only the SELECT statement is supported by Adwords.
 // The AWQL command line tool extends it with others SQL grammar.
 type DataStmt interface {
-	Columns() []Field
+	Columns() []DynamicField
 	SourceName() string
 	Stmt
 }
 
-// Columns returns the list of table fields.
+// DataStatement represents a AWQL base statement.
 // It implements the DataStmt interface.
-func (s DataStatement) Columns() []Field {
+type DataStatement struct {
+	Fields    []DynamicField
+	TableName string
+	Statement
+}
+
+// Columns returns the list of table fields.
+func (s DataStatement) Columns() []DynamicField {
 	return s.Fields
 }
 
-// SetColumns offers the possibility to force fields to use.
-func (s DataStatement) SetColumns(f []Field) {
-	s.Fields = f
-}
-
 // SourceName returns the table's name.
-// It implements the DataStmt interface.
 func (s DataStatement) SourceName() string {
 	return s.TableName
-}
-
-// SetSourceName overloads the data source name.
-func (s DataStatement) SetSourceName(n string) {
-	s.TableName = n
-}
-
-// SelectStatement represents a AWQL SELECT statement.
-// SELECT...FROM...WHERE...DURING...GROUP BY...ORDER BY...LIMIT...
-type SelectStatement struct {
-	DataStatement
-	Where   []Condition
-	During  []string
-	GroupBy []*ColumnPosition
-	OrderBy []*Ordering
-	Limit
 }
 
 /*
@@ -120,13 +193,13 @@ FromClause       : FROM SourceName
 WhereClause      : WHERE ConditionList
 DuringClause     : DURING DateRange
 GroupByClause    : GROUP BY Grouping (, Grouping)*
-OrderByClause    : ORDER BY Ordering (, Ordering)*
+OrderByClause    : ORDER BY Order (, Order)*
 LimitClause      : LIMIT StartIndex , PageSize
 
 ConditionList    : Condition (AND Condition)*
 Condition        : ColumnName Operator Value
 Value            : ValueLiteral | String | ValueLiteralList | StringList
-Ordering         : ColumnName (DESC | ASC)?
+Order         : ColumnName (DESC | ASC)?
 DateRange        : DateRangeLiteral | Date,Date
 ColumnList       : ColumnName (, ColumnName)*
 ColumnName       : Literal
@@ -151,55 +224,53 @@ type SelectStmt interface {
 	DataStmt
 	ConditionList() []Condition
 	DuringList() []string
-	GroupList() []*ColumnPosition
-	OrderList() []*Ordering
+	GroupList() []FieldPosition
+	OrderList() []Orderer
 	StartIndex() int
 	PageSize() (int, bool)
 	fmt.Stringer
 }
 
-// ConditionList returns the condition list.
+// SelectStatement represents a AWQL SELECT statement.
+// SELECT...FROM...WHERE...DURING...GROUP BY...ORDER BY...LIMIT...
 // It implements the SelectStmt interface.
+type SelectStatement struct {
+	DataStatement
+	Where   []Condition
+	During  []string
+	GroupBy []FieldPosition
+	OrderBy []Orderer
+	Limit
+}
+
+// ConditionList returns the condition list.
 func (s SelectStatement) ConditionList() []Condition {
 	return s.Where
 }
 
 // DuringList returns the during (date range).
-// It implements the SelectStmt interface.
 func (s SelectStatement) DuringList() []string {
 	return s.During
 }
 
 // GroupList returns the group by columns.
-// It implements the SelectStmt interface.
-func (s SelectStatement) GroupList() []*ColumnPosition {
+func (s SelectStatement) GroupList() []FieldPosition {
 	return s.GroupBy
 }
 
 // OrderList returns the order by columns.
-// It implements the SelectStmt interface.
-func (s SelectStatement) OrderList() []*Ordering {
+func (s SelectStatement) OrderList() []Orderer {
 	return s.OrderBy
 }
 
 // StartIndex returns the start index.
-// It implements the SelectStmt interface.
 func (s SelectStatement) StartIndex() int {
 	return s.Offset
 }
 
 // PageSize returns the row count.
-// It implements the SelectStmt interface.
 func (s SelectStatement) PageSize() (int, bool) {
 	return s.RowCount, s.WithRowCount
-}
-
-// CreateViewStatement represents a AWQL CREATE VIEW statement.
-// CREATE...OR REPLACE...VIEW...AS
-type CreateViewStatement struct {
-	DataStatement
-	Replace bool
-	View    *SelectStatement
 }
 
 /*
@@ -217,27 +288,23 @@ type CreateViewStmt interface {
 	SourceQuery() SelectStmt
 }
 
-// ReplaceMode returns true if it is required to replace the existing view.
+// CreateViewStatement represents a AWQL CREATE VIEW statement.
+// CREATE...OR REPLACE...VIEW...AS
 // It implements the CreateViewStmt interface.
+type CreateViewStatement struct {
+	DataStatement
+	Replace bool
+	View    *SelectStatement
+}
+
+// ReplaceMode returns true if it is required to replace the existing view.
 func (s CreateViewStatement) ReplaceMode() bool {
 	return s.Replace
 }
 
 // SourceQuery returns the source query, base of the view to create.
-// It implements the CreateViewStmt interface.
 func (s CreateViewStatement) SourceQuery() SelectStmt {
 	return s.View
-}
-
-// FullStatement enables a AWQL FULL mode.
-type FullStatement struct {
-	Full bool
-}
-
-// FullMode returns true if the full display is required.
-// It implements the DescribeStmt interface.
-func (s FullStatement) FullMode() bool {
-	return s.Full
 }
 
 // FullStmt proposes the full statement mode.
@@ -245,11 +312,15 @@ type FullStmt interface {
 	FullMode() bool
 }
 
-// DescribeStatement represents a AWQL DESC statement.
-// DESC...FULL
-type DescribeStatement struct {
-	FullStatement
-	DataStatement
+// FullStatement enables a AWQL FULL mode.
+// It implements the FullStmt interface.
+type FullStatement struct {
+	Full bool
+}
+
+// FullMode returns true if the full display is required.
+func (s FullStatement) FullMode() bool {
+	return s.Full
 }
 
 /*
@@ -265,14 +336,12 @@ type DescribeStmt interface {
 	FullStmt
 }
 
-// ShowStatement represents a AWQL SHOW statement.
-// SHOW...FULL...TABLES...LIKE...WITH
-type ShowStatement struct {
+// DescribeStatement represents a AWQL DESC statement.
+// DESC...FULL
+// It implements the DescribeStmt interface.
+type DescribeStatement struct {
 	FullStatement
-	Like    Pattern
-	With    string
-	UseWith bool
-	Statement
+	DataStatement
 }
 
 /*
@@ -287,14 +356,24 @@ LikeClause   : LIKE String
 */
 type ShowStmt interface {
 	FullStmt
-	LikePattern() (Pattern, bool)
-	WithColumnName() (string, bool)
+	LikePattern() (p Pattern, used bool)
+	WithFieldName() (name string, used bool)
 	Stmt
+}
+
+// ShowStatement represents a AWQL SHOW statement.
+// SHOW...FULL...TABLES...LIKE...WITH
+// It implements the ShowStmt interface.
+type ShowStatement struct {
+	FullStatement
+	Like    Pattern
+	With    string
+	UseWith bool
+	Statement
 }
 
 // LikePattern returns the pattern used for a like query on the table list.
 // If the second parameter is on, the like clause has been used.
-// It implements the ShowStmt interface.
 func (s ShowStatement) LikePattern() (Pattern, bool) {
 	var used bool
 	switch {
@@ -310,8 +389,7 @@ func (s ShowStatement) LikePattern() (Pattern, bool) {
 	return s.Like, used
 }
 
-// WithColumnName returns the column name used to search table with this column.
-// It implements the ShowStmt interface.
-func (s ShowStatement) WithColumnName() (string, bool) {
+// WithFieldName returns the column name used to search table with this column.
+func (s ShowStatement) WithFieldName() (string, bool) {
 	return s.With, s.UseWith
 }

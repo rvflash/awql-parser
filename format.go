@@ -6,49 +6,54 @@ import "strconv"
 // Indeed, aggregate functions, ORDER BY, GROUP BY and LIMIT are not supported for reports.
 // Implements fmt.Stringer interface.
 func (s SelectStatement) String() (q string) {
-	if len(s.Fields) == 0 || s.TableName == "" {
+	if len(s.Columns()) == 0 || s.SourceName() == "" {
 		return
 	}
-	// Concat selected fields.
+
+	// Concats selected fields.
 	q = "SELECT "
-	for i, c := range s.Fields {
+	for i, c := range s.Columns() {
 		if i > 0 {
 			q += ", "
 		}
-		q += c.ColumnName
+		q += c.Name()
 	}
-	// Data source
-	q += " FROM " + s.TableName
-	// Conditions
-	if len(s.Where) > 0 {
+
+	// Adds data source name.
+	q += " FROM " + s.SourceName()
+
+	// Conditions.
+	if len(s.ConditionList()) > 0 {
 		q += " WHERE "
-		for i, c := range s.Where {
+		for i, c := range s.ConditionList() {
 			if i > 0 {
 				q += " AND "
 			}
-			q += c.ColumnName + " " + c.Operator
-			if len(c.Value) > 1 {
+			q += c.Name() + " " + c.Operator()
+			val, lit := c.Value()
+			if len(val) > 1 {
 				q += " ["
-				for y, v := range c.Value {
+				for y, v := range val {
 					if y > 0 {
 						q += " ,"
 					}
-					if c.IsValueLiteral {
+					if lit {
 						q += " " + v
 					} else {
 						q += " " + strconv.Quote(v)
 					}
 				}
 				q += " ]"
-			} else if c.IsValueLiteral {
-				q += " " + c.Value[0]
+			} else if lit {
+				q += " " + val[0]
 			} else {
-				q += " " + strconv.Quote(c.Value[0])
+				q += " " + strconv.Quote(val[0])
 			}
 		}
 	}
+
 	// Range date
-	d := s.During
+	d := s.DuringList()
 	if ds := len(d); ds > 0 {
 		q += " DURING "
 		if ds == 2 {
@@ -58,5 +63,6 @@ func (s SelectStatement) String() (q string) {
 			q += d[0]
 		}
 	}
+
 	return
 }

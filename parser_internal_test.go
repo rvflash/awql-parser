@@ -23,8 +23,8 @@ func TestParser_ParseCreateView(t *testing.T) {
 				},
 				View: &SelectStatement{
 					DataStatement: DataStatement{
-						Fields: []Field{
-							{Column{ColumnName: "Cost"}, "SUM", true},
+						Fields: []DynamicField{
+							&DynamicColumn{Column: &Column{ColumnName: "Cost"}, Method: "SUM", Unique: true},
 						},
 						TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 					},
@@ -38,21 +38,21 @@ func TestParser_ParseCreateView(t *testing.T) {
 			stmt: &CreateViewStatement{
 				DataStatement: DataStatement{
 					TableName: "CAMPAIGN_DAILY",
-					Fields: []Field{
-						{Column{ColumnName: "Date"}, "", false},
-						{Column{ColumnName: "Adspend"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Date"}, "", false},
+						&DynamicColumn{&Column{ColumnName: "Adspend"}, "", false},
 					},
 				},
 				View: &SelectStatement{
 					DataStatement: DataStatement{
-						Fields: []Field{
-							{Column{ColumnName: "Date"}, "", false},
-							{Column{ColumnName: "Cost"}, "SUM", true},
+						Fields: []DynamicField{
+							&DynamicColumn{&Column{ColumnName: "Date"}, "", false},
+							&DynamicColumn{&Column{ColumnName: "Cost"}, "SUM", true},
 						},
 						TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 					},
-					GroupBy: []*ColumnPosition{
-						{Column{ColumnName: "Date"}, 1},
+					GroupBy: []FieldPosition{
+						&ColumnPosition{&Column{ColumnName: "Date"}, 1},
 					},
 				},
 				Replace: true,
@@ -62,6 +62,7 @@ func TestParser_ParseCreateView(t *testing.T) {
 		// Errors
 		{q: `SELECT`, err: fmt.Sprintf(ErrMsgBadMethod, "SELECT")},
 		{q: `CREATE VIEW !`, err: fmt.Sprintf(ErrMsgBadSrc, "!")},
+		{q: `CREATE VIEW CAMPAIGN_DAILY (Name, Cost) AS SELECT SUM(DISTINCT Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`, err: ErrMsgColumnsNotMatch},
 	}
 
 	for i, qt := range queryTests {
@@ -111,8 +112,8 @@ func TestParser_ParseDescribe(t *testing.T) {
 			stmt: &DescribeStatement{
 				FullStatement: FullStatement{Full: true},
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "CampaignName"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "CampaignName"}, "", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 					Statement: Statement{GModifier: true},
@@ -255,8 +256,8 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT CampaignName FROM CAMPAIGN_PERFORMANCE_REPORT`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "CampaignName"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "CampaignName"}, "", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 				},
@@ -268,10 +269,10 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT CampaignId, CampaignName, Cost FROM CAMPAIGN_PERFORMANCE_REPORT\G`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "CampaignId"}, "", false},
-						{Column{ColumnName: "CampaignName"}, "", false},
-						{Column{ColumnName: "Cost"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "CampaignId"}, "", false},
+						&DynamicColumn{&Column{ColumnName: "CampaignName"}, "", false},
+						&DynamicColumn{&Column{ColumnName: "Cost"}, "", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 					Statement: Statement{GModifier: true},
@@ -284,13 +285,13 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT * FROM CAMPAIGN_DAILY WHERE CampaignId = 12345678 DURING YESTERDAY;`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "*"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "*"}, "", false},
 					},
 					TableName: "CAMPAIGN_DAILY",
 				},
 				Where: []Condition{
-					{Column{ColumnName: "CampaignId"}, "=", []string{"12345678"}, true},
+					&Where{&Column{ColumnName: "CampaignId"}, "=", []string{"12345678"}, true},
 				},
 				During: []string{"YESTERDAY"},
 			},
@@ -301,8 +302,8 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT MAX(Cost) as max FROM CAMPAIGN_PERFORMANCE_REPORT LIMIT 5\G`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "Cost", ColumnAlias: "max"}, "MAX", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Cost", ColumnAlias: "max"}, "MAX", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 					Statement: Statement{GModifier: true},
@@ -316,8 +317,8 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT SUM(distinct Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "Cost"}, "SUM", true},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Cost"}, "SUM", true},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 				},
@@ -329,14 +330,14 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT DISTINCT Cost as c FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224,20161224 ORDER BY 1 DESC LIMIT 15, 5;`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "Cost", ColumnAlias: "c"}, "", true},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Cost", ColumnAlias: "c"}, "", true},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 				},
 				During: []string{"20161224", "20161224"},
-				OrderBy: []*Ordering{
-					{ColumnPosition{Column{ColumnName: "Cost", ColumnAlias: "c"}, 1}, true},
+				OrderBy: []Orderer{
+					&Order{&ColumnPosition{&Column{ColumnName: "Cost", ColumnAlias: "c"}, 1}, true},
 				},
 				Limit: Limit{15, 5, true},
 			},
@@ -347,18 +348,18 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT Date, Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN ["ENABLED","PAUSED"] DURING LAST_WEEK GROUP BY 1;`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "Date"}, "", false},
-						{Column{ColumnName: "Cost"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Date"}, "", false},
+						&DynamicColumn{&Column{ColumnName: "Cost"}, "", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 				},
 				Where: []Condition{
-					{Column{ColumnName: "CampaignStatus"}, "IN", []string{"ENABLED", "PAUSED"}, false},
+					&Where{&Column{ColumnName: "CampaignStatus"}, "IN", []string{"ENABLED", "PAUSED"}, false},
 				},
 				During: []string{"LAST_WEEK"},
-				GroupBy: []*ColumnPosition{
-					{Column{ColumnName: "Date"}, 1},
+				GroupBy: []FieldPosition{
+					&ColumnPosition{&Column{ColumnName: "Date"}, 1},
 				},
 			},
 		},
@@ -368,13 +369,13 @@ func TestParser_ParseSelect(t *testing.T) {
 			q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignId IN [123456789,987654321]`,
 			stmt: &SelectStatement{
 				DataStatement: DataStatement{
-					Fields: []Field{
-						{Column{ColumnName: "Cost"}, "", false},
+					Fields: []DynamicField{
+						&DynamicColumn{&Column{ColumnName: "Cost"}, "", false},
 					},
 					TableName: "CAMPAIGN_PERFORMANCE_REPORT",
 				},
 				Where: []Condition{
-					{Column{ColumnName: "CampaignId"}, "IN", []string{"123456789", "987654321"}, true},
+					&Where{&Column{ColumnName: "CampaignId"}, "IN", []string{"123456789", "987654321"}, true},
 				},
 			},
 		},
@@ -398,10 +399,10 @@ func TestParser_ParseSelect(t *testing.T) {
 		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName IN [ !`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
 		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING`, err: fmt.Sprintf(ErrMsgBadDuring, "")},
 		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING RV`, err: fmt.Sprintf(ErrMsgBadDuring, "RV")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING TODAY, YESTERDAY`, err: fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringDateSize)},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING TODAY, YESTERDAY`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringDateSize)},
 		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 201612`, err: fmt.Sprintf(ErrMsgBadDuring, "201612")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224`, err: fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringLitSize)},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224,20161225,20161226`, err: fmt.Sprintf(ErrMsgBadDuring, ErrMsgDuringSize)},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringLitSize)},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224,20161225,20161226`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringSize)},
 		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN ["ENABLED",PAUSED];`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
 		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN [PAUSED,"ENABLED"];`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
 	}
