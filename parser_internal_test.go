@@ -1,7 +1,6 @@
 package awqlparse
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,7 +11,7 @@ func TestParser_ParseCreateView(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *CreateViewStatement
-		err  string
+		err  error
 	}{
 		// Simple statement.
 		{
@@ -60,18 +59,18 @@ func TestParser_ParseCreateView(t *testing.T) {
 		},
 
 		// Errors
-		{q: `SELECT`, err: fmt.Sprintf(ErrMsgBadMethod, "SELECT")},
-		{q: `CREATE VIEW !`, err: fmt.Sprintf(ErrMsgBadSrc, "!")},
-		{q: `CREATE VIEW CAMPAIGN_DAILY (Name, Cost) AS SELECT SUM(DISTINCT Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`, err: ErrMsgColumnsNotMatch},
+		{q: `SELECT`, err: NewXParserError(ErrMsgBadMethod, "SELECT")},
+		{q: `CREATE VIEW !`, err: NewXParserError(ErrMsgBadSrc, "!")},
+		{q: `CREATE VIEW CAMPAIGN_DAILY (Name, Cost) AS SELECT SUM(DISTINCT Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`, err: NewParserError(ErrMsgColumnsNotMatch)},
 	}
 
 	for i, qt := range queryTests {
 		stmt, err := NewParser(strings.NewReader(qt.q)).ParseCreateView()
 		if err != nil {
-			if qt.err != err.Error() {
-				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
+			if qt.err.Error() != err.Error() {
+				t.Errorf("%d. Expected the error message %s with %s, received %s", i, qt.err, qt.q, err)
 			}
-		} else if qt.err != "" {
+		} else if qt.err != nil {
 			t.Errorf("%d. Expected the error message %v with %s, received no error", i, qt.err, qt.q)
 		} else if !reflect.DeepEqual(qt.stmt, stmt) {
 			t.Errorf("%d. Expected %#v, received %#v", i, qt.stmt, stmt)
@@ -84,7 +83,7 @@ func TestParser_ParseDescribe(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *DescribeStatement
-		err  string
+		err  error
 	}{
 		// Simple statement.
 		{
@@ -122,17 +121,17 @@ func TestParser_ParseDescribe(t *testing.T) {
 		},
 
 		// Errors
-		{q: `SELECT`, err: fmt.Sprintf(ErrMsgBadMethod, "SELECT")},
-		{q: `DESC !`, err: fmt.Sprintf(ErrMsgBadSrc, "!")},
+		{q: `SELECT`, err: NewXParserError(ErrMsgBadMethod, "SELECT")},
+		{q: `DESC !`, err: NewXParserError(ErrMsgBadSrc, "!")},
 	}
 
 	for i, qt := range queryTests {
 		stmt, err := NewParser(strings.NewReader(qt.q)).ParseDescribe()
 		if err != nil {
-			if qt.err != err.Error() {
+			if qt.err.Error() != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
 			}
-		} else if qt.err != "" {
+		} else if qt.err != nil {
 			t.Errorf("%d. Expected the error message %v with %s, received no error", i, qt.err, qt.q)
 		} else if !reflect.DeepEqual(qt.stmt, stmt) {
 			t.Errorf("%d. Expected %#v, received %#v", i, qt.stmt, stmt)
@@ -145,7 +144,7 @@ func TestParser_ParseShow(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *ShowStatement
-		err  string
+		err  error
 	}{
 		// Simple statement.
 		{
@@ -224,19 +223,19 @@ func TestParser_ParseShow(t *testing.T) {
 		},
 
 		// Errors
-		{q: `SELECT`, err: fmt.Sprintf(ErrMsgBadMethod, "SELECT")},
-		{q: `SHOW`, err: fmt.Sprintf(ErrMsgSyntax, "")},
-		{q: `SHOW TABLES LIKE rv`, err: fmt.Sprintf(ErrMsgSyntax, "rv")},
-		{q: `SHOW TABLES LABEL`, err: fmt.Sprintf(ErrMsgSyntax, "LABEL")},
+		{q: `SELECT`, err: NewXParserError(ErrMsgBadMethod, "SELECT")},
+		{q: `SHOW`, err: NewXParserError(ErrMsgSyntax, "")},
+		{q: `SHOW TABLES LIKE rv`, err: NewXParserError(ErrMsgSyntax, "rv")},
+		{q: `SHOW TABLES LABEL`, err: NewXParserError(ErrMsgSyntax, "LABEL")},
 	}
 
 	for i, qt := range queryTests {
 		stmt, err := NewParser(strings.NewReader(qt.q)).ParseShow()
 		if err != nil {
-			if qt.err != err.Error() {
+			if qt.err.Error() != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
 			}
-		} else if qt.err != "" {
+		} else if qt.err != nil {
 			t.Errorf("%d. Expected the error message %v with %s, received no error", i, qt.err, qt.q)
 		} else if !reflect.DeepEqual(qt.stmt, stmt) {
 			t.Errorf("%d. Expected %#v, received %#v", i, qt.stmt, stmt)
@@ -249,7 +248,7 @@ func TestParser_ParseSelect(t *testing.T) {
 	var queryTests = []struct {
 		q    string
 		stmt *SelectStatement
-		err  string
+		err  error
 	}{
 		// Single field statement.
 		{
@@ -381,39 +380,39 @@ func TestParser_ParseSelect(t *testing.T) {
 		},
 
 		// Errors
-		{q: `DELETE`, err: fmt.Sprintf(ErrMsgBadMethod, "DELETE")},
-		{q: `SELECT !`, err: fmt.Sprintf(ErrMsgBadField, "!")},
-		{q: `SELECT CampaignId Impressions`, err: ErrMsgMissingSrc},
-		{q: `SELECT CampaignId FROM`, err: fmt.Sprintf(ErrMsgBadSrc, "")},
-		{q: `SELECT CampaignId FROM REPORT WHERE`, err: fmt.Sprintf(ErrMsgBadField, "")},
-		{q: `SELECT CampaignId FROM REPORT GROUP`, err: fmt.Sprintf(ErrMsgBadGroup, "")},
-		{q: `SELECT CampaignId FROM REPORT GROUP BY ,`, err: fmt.Sprintf(ErrMsgBadGroup, ",")},
-		{q: `SELECT CampaignId FROM REPORT GROUP BY 2`, err: fmt.Sprintf(ErrMsgBadGroup, fmt.Sprintf(ErrMsgBadColumn, "2"))},
-		{q: `SELECT CampaignId FROM REPORT ORDER 1`, err: fmt.Sprintf(ErrMsgBadOrder, "1")},
-		{q: `SELECT CampaignId FROM REPORT LIMIT 1 SELECT`, err: fmt.Sprintf(ErrMsgSyntax, "SELECT")},
-		{q: `SELECT CampaignId FROM REPORT LIMIT`, err: fmt.Sprintf(ErrMsgBadLimit, "")},
-		{q: `SELECT DISTINCT 1 FROM CAMPAIGN_PERFORMANCE_REPORT`, err: fmt.Sprintf(ErrMsgBadField, "1")},
-		{q: `SELECT rv(Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`, err: fmt.Sprintf(ErrMsgBadFunc, "rv")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName ! "rv"`, err: fmt.Sprintf(ErrMsgSyntax, "!")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName = !`, err: fmt.Sprintf(ErrMsgSyntax, "!")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName IN [ !`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING`, err: fmt.Sprintf(ErrMsgBadDuring, "")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING RV`, err: fmt.Sprintf(ErrMsgBadDuring, "RV")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING TODAY, YESTERDAY`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringDateSize)},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 201612`, err: fmt.Sprintf(ErrMsgBadDuring, "201612")},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringLitSize)},
-		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224,20161225,20161226`, err: fmt.Sprintf(ErrMsgBadDuring, IErrMsgDuringSize)},
-		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN ["ENABLED",PAUSED];`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
-		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN [PAUSED,"ENABLED"];`, err: fmt.Sprintf(ErrMsgSyntax, "[")},
+		{q: `DELETE`, err: NewXParserError(ErrMsgBadMethod, "DELETE")},
+		{q: `SELECT !`, err: NewXParserError(ErrMsgBadField, "!")},
+		{q: `SELECT CampaignId Impressions`, err: NewParserError(ErrMsgMissingSrc)},
+		{q: `SELECT CampaignId FROM`, err: NewXParserError(ErrMsgBadSrc, "")},
+		{q: `SELECT CampaignId FROM REPORT WHERE`, err: NewXParserError(ErrMsgBadField, "")},
+		{q: `SELECT CampaignId FROM REPORT GROUP`, err: NewXParserError(ErrMsgBadGroup, "")},
+		{q: `SELECT CampaignId FROM REPORT GROUP BY ,`, err: NewXParserError(ErrMsgBadGroup, ",")},
+		{q: `SELECT CampaignId FROM REPORT GROUP BY 2`, err: NewXParserError(ErrMsgBadGroup, NewXParserError(ErrMsgBadColumn, "2"))},
+		{q: `SELECT CampaignId FROM REPORT ORDER 1`, err: NewXParserError(ErrMsgBadOrder, "1")},
+		{q: `SELECT CampaignId FROM REPORT LIMIT 1 SELECT`, err: NewXParserError(ErrMsgSyntax, "SELECT")},
+		{q: `SELECT CampaignId FROM REPORT LIMIT`, err: NewXParserError(ErrMsgBadLimit, "")},
+		{q: `SELECT DISTINCT 1 FROM CAMPAIGN_PERFORMANCE_REPORT`, err: NewXParserError(ErrMsgBadField, "1")},
+		{q: `SELECT rv(Cost) FROM CAMPAIGN_PERFORMANCE_REPORT`, err: NewXParserError(ErrMsgBadFunc, "rv")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName ! "rv"`, err: NewXParserError(ErrMsgSyntax, "!")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName = !`, err: NewXParserError(ErrMsgSyntax, "!")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignName IN [ !`, err: NewXParserError(ErrMsgSyntax, "[")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING`, err: NewXParserError(ErrMsgBadDuring, "")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING RV`, err: NewXParserError(ErrMsgBadDuring, "RV")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING TODAY, YESTERDAY`, err: NewXParserError(ErrMsgBadDuring, ErrMsgDuringDateSize)},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 201612`, err: NewXParserError(ErrMsgBadDuring, "201612")},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224`, err: NewXParserError(ErrMsgBadDuring, ErrMsgDuringLitSize)},
+		{q: `SELECT CampaignId FROM CAMPAIGN_PERFORMANCE_REPORT DURING 20161224,20161225,20161226`, err: NewXParserError(ErrMsgBadDuring, ErrMsgDuringSize)},
+		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN ["ENABLED",PAUSED];`, err: NewXParserError(ErrMsgSyntax, "[")},
+		{q: `SELECT Cost FROM CAMPAIGN_PERFORMANCE_REPORT WHERE CampaignStatus IN [PAUSED,"ENABLED"];`, err: NewXParserError(ErrMsgSyntax, "[")},
 	}
 
 	for i, qt := range queryTests {
 		stmt, err := NewParser(strings.NewReader(qt.q)).ParseSelect()
 		if err != nil {
-			if qt.err != err.Error() {
+			if qt.err.Error() != err.Error() {
 				t.Errorf("%d. Expected the error message %v with %s, received %v", i, qt.err, qt.q, err.Error())
 			}
-		} else if qt.err != "" {
+		} else if qt.err != nil {
 			t.Errorf("%d. Expected the error message %v with %s, received no error", i, qt.err, qt.q)
 		} else if !reflect.DeepEqual(qt.stmt, stmt) {
 			t.Errorf("%d. Expected %#v, received %#v", i, qt.stmt, stmt)
