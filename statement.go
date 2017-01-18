@@ -142,6 +142,7 @@ type Limit struct {
 // Stmt formats the query output.
 type Stmt interface {
 	VerticalOutput() bool
+	fmt.Stringer
 }
 
 // Statement enables to format the query output.
@@ -228,7 +229,7 @@ type SelectStmt interface {
 	OrderList() []Orderer
 	StartIndex() int
 	PageSize() (int, bool)
-	fmt.Stringer
+	LegacyString() string
 }
 
 // SelectStatement represents a AWQL SELECT statement.
